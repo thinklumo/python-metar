@@ -716,26 +716,7 @@ class Metar(object):
             self.runway.append((name,low,high))
 
     def _handleWeather(self, d):
-        """
-        Parse a present-weather group.
-
-        The following attributes are set:
-            weather    [list of tuples]
-            .  intensity     [string]
-            .  description   [string]
-            .  precipitation [string]
-            .  obscuration   [string]
-            .  other         [string]
-        """
-        inteni = d['int']
-        if not inteni and d['int2']:
-            inteni = d['int2']
-
-        desci = d['desc']
-        preci = d['prec']
-        obsci = d['obsc']
-        otheri = d['other']
-        self.weather.append((inteni,desci,preci,obsci,otheri))
+        self.weather.append(PresentWeather(d))
 
     def _handleSky(self, d):
         """
@@ -1327,47 +1308,29 @@ class Metar(object):
         """
         text_list = []
         for weatheri in self.weather:
-            (inteni,desci,preci,obsci,otheri) = weatheri
+            (inteni,desci,preci,obsci,otheri) = weatheri.info
             text_parts = []
             code_parts = []
             if inteni:
                 code_parts.append(inteni)
-                text_parts.append(WEATHER_INT[inteni])
+                text_parts.append(weatheri.intensity)
 
             if desci:
                 code_parts.append(desci)
-                if desci != "SH" or not preci:
-                    text_parts.append(WEATHER_DESC[desci[0:2]])
-                    if len(desci) == 4:
-                        text_parts.append(WEATHER_DESC[desci[2:]])
+                text_parts.append(weatheri.description)
 
             if preci:
                 code_parts.append(preci)
-                if len(preci) == 2:
-                    precip_text = WEATHER_PREC[preci]
+                text_parts.append(weatheri.precip)
 
-                elif len(preci) == 4:
-                    precip_text = WEATHER_PREC[preci[:2]]+" and "
-                    precip_text += WEATHER_PREC[preci[2:]]
-
-                elif len(preci) == 6:
-                    precip_text = WEATHER_PREC[preci[:2]]+", "
-                    precip_text += WEATHER_PREC[preci[2:4]]+" and "
-                    precip_text += WEATHER_PREC[preci[4:]]
-
-                if desci == "TS":
-                    text_parts.append("with")
-                text_parts.append(precip_text)
-
-                if desci == "SH":
-                    text_parts.append(WEATHER_DESC[desci])
             if obsci:
                 code_parts.append(obsci)
-                text_parts.append(WEATHER_OBSC[obsci])
+                text_parts.append(weatheri.obscuration)
 
             if otheri:
                 code_parts.append(otheri)
-                text_parts.append(WEATHER_OTHER[otheri])
+                text_parts.append(weatheri.other)
+                
             code = " ".join(code_parts)
 
             if code in WEATHER_SPECIAL:
@@ -1415,6 +1378,65 @@ class Metar(object):
         Return the decoded remarks.
         """
         return sep.join(self._remarks)
+
+class PresentWeather:
+
+    def __init__(self, d):
+        self._parse_group(d)
+
+    def _parse_group(self, d):
+        """
+        Parse a present-weather group.
+
+        The following attributes are set:
+            weather    [list of tuples]
+            .  intensity     [string]
+            .  description   [string]
+            .  precipitation [string]
+            .  obscuration   [string]
+            .  other         [string]
+        """
+        print('ZZ' + str(d))
+        for attr in ['intensity', 'description', 'precip', 'obscuration', 'other']:
+            setattr(self, attr, None)
+            
+        intensity = d['int']
+        if not intensity and d['int2']:
+            intensity = d['int2']
+        if intensity:
+            self.intensity = WEATHER_INT[intensity]
+
+        description = d['desc']
+        precip = d['prec']
+        if description:
+            if description == "SH":
+                self.description = WEATHER_DESC[description]
+            elif description != "SH" or not preci:
+                self.description = WEATHER_DESC[description[0:2]]
+                if len(description) == 4:
+                    self.description += WEATHER_DESC[description[2:]]
+                
+        if precip:
+            if len(precip) == 2:
+                self.precip = WEATHER_PREC[precip]
+            elif len(precip) == 4:
+                self.precip = WEATHER_PREC[precip[:2]]+" and "
+                self.precip += WEATHER_PREC[precip[2:]]
+            elif len(precip) == 6:
+                self.precip = WEATHER_PREC[precip[:2]]+", "
+                self.precip += WEATHER_PREC[precip[2:4]]+" and "
+                self.precip += WEATHER_PREC[precip[4:]]
+  
+        obsci = d['obsc']
+        if obsci:
+            self.obscuration = WEATHER_OBSC[obsci]
+
+        otheri = d['other']
+        if otheri:
+            self.other = WEATHER_OTHER[otheri]
+
+        self.info = (intensity,description,precip,obsci,otheri)
+
 
 class ProgressBar:
     def __init__(self, sequence, width=50, labels=None, labelfxn=None):

@@ -1396,7 +1396,6 @@ class PresentWeather:
             .  obscuration   [string]
             .  other         [string]
         """
-        print('ZZ' + str(d))
         for attr in ['intensity', 'description', 'precip', 'obscuration', 'other']:
             setattr(self, attr, None)
             

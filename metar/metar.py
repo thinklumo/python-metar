@@ -530,7 +530,7 @@ class Metar(object):
             elif allexceptions:
                 raise ParserError(msg)
             else:
-                print(msg)
+                print('[WARNING]', msg)
 
     def _do_trend_handlers(self, code):
         for pattern, handler, repeatable in Metar.trend_handlers:
